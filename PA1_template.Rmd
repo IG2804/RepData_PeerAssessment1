@@ -1,25 +1,57 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible_Research_CourseProject1"
+author: "IG"
+date: "November 12, 2017"
+output: html_document
 ---
 
+```{r Load and Preprocess the Dataset in the R-Studio environment}
+activity <- read.csv("C:/Ishani/Learning R/Reproducible Research/Data_RR/activity.csv")
+#Convert date to class Date from factor
+activity$date <- as.Date(activity$date, format = "%Y-%m-%d")
+```
+```{r Calculate mean total no. of steps taken per day}
+library(dplyr)
+activity <- mutate(activity, mth_day = format(as.Date(date), "%m-%d"))
+Daily <- group_by(activity, mth_day)
+Steps <- summarize(Daily, steps_total_byday = sum(steps, na.rm = TRUE))
+hist(Steps$steps_total_byday, xlab = "Daily Steps", main = "Distribution of Steps taken per day", col = "red", breaks = 20)
+summarize(Steps, steps_mean = mean(steps_total_byday), steps_median =median(steps_total_byday))
 
-## Loading and preprocessing the data
+```
+```{r Average Daily Activity Pattern}
+Interval <- group_by(activity, interval)
+Steps_by_Interval <- summarize(Interval, avg_steps = mean(steps, na.rm = TRUE))
 
+with(Steps_by_Interval,plot(interval, avg_steps, type = "l", xlab = "5-min interval", ylab = "Avg # of steps", main = "Average StepCount By Interval", col = "red", lwd = 3, bg = "blue"))
+m <- max(Steps_by_Interval$avg_steps) # Finding the max. avg steps in a 5-min interval
+h <- filter(Steps_by_Interval, avg_steps == m)#Which 5 min interval corresponds to the max. avg steps
+abline(v = 835, lwd = 2)
 
+```
+```{r Impute missing values}
+count_miss <- sum(!complete.cases(activity))#No of rows with missing values = 2304
 
-## What is mean total number of steps taken per day?
+activity_fill <- merge(activity, Steps_by_Interval, by = c("interval")) #Create a new dataset by merging original data with the file containing avg. steps per 5 min interval
+activity_fill$steps_imputed = ifelse(is.na(activity_fill$steps), activity_fill$avg_steps, activity_fill$steps) # Imputing based on mean values of steps at that interval
+Daily_fill <- group_by(activity_fill, mth_day)
+Steps_fill <- summarize(Daily_fill, steps_total_byday = sum(steps_imputed))
 
+hist(Steps_fill$steps_total_byday, xlab = "Daily Steps", main = "Distribution of Steps taken per day", col = "red", breaks = 20)
+summarize(Steps_fill, steps_mean = mean(steps_total_byday), steps_median =median(steps_total_byday))
 
+#Comparison of results pre and post imputation shows both the mean and the median have increased#
+```
+```{r Differences in activity patterns between weekends and weekdays}
+activity_fill$Dayofweek <- weekdays(activity_fill$date)
+activity_fill$Wkday <- with(activity_fill, ifelse(Dayofweek %in% c("Saturday", "Sunday"), "Weekend", "weekday"))
 
-## What is the average daily activity pattern?
+Interval_fill <- group_by(activity_fill, interval, Wkday)
+Steps_by_Interval_fill <- summarize(Interval_fill, avg_steps = mean(steps_imputed))
 
+par(mfrow = c(2, 1), mar = c(5, 4, 2, 1))
+with(subset(Steps_by_Interval_fill, Wkday == "Weekend"), plot(interval, avg_steps, type = "l", xlab = "5-min interval", ylab = "Avg # of steps", main = "Weekend", col = "red", lwd = 3))
+with(subset(Steps_by_Interval_fill, Wkday == "weekday"), plot(interval, avg_steps, type = "l", xlab = "5-min interval", ylab = "Avg # of steps", main = "Weekday", col = "red", lwd = 3))
 
+```
 
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
